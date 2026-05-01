@@ -40,20 +40,20 @@ fetch the template directly from a public HTTPS URL.
 # Either fork from GitHub UI, or push to your own org:
 git init
 git add .
-git remote add origin https://github.com/YOUR-ORG/openclaw-deploy.git
+git remote add origin https://github.com/Arun-Cloudsec/openclaw-deploy.git
 git push -u origin main
 ```
 
-### Step 2 — Replace the `YOUR-ORG` placeholder
+### Step 2 — Replace the `Arun-Cloudsec` placeholder
 
-Search-replace `YOUR-ORG` → your GitHub org/user name across `site/index.html`:
+Search-replace `Arun-Cloudsec` → your GitHub org/user name across `site/index.html`:
 
 ```bash
 # macOS
-sed -i '' 's/YOUR-ORG/your-actual-org/g' site/index.html
+sed -i '' 's/Arun-Cloudsec/your-actual-org/g' site/index.html
 
 # Linux
-sed -i 's/YOUR-ORG/your-actual-org/g' site/index.html
+sed -i 's/Arun-Cloudsec/your-actual-org/g' site/index.html
 ```
 
 The button URLs are:
