@@ -1,1 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenClaw Deploy - One-Click AI Assistant in 60 Seconds</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #10b981;
+            --primary-dark: #059669;
+            --primary-light: #d1fae5;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-card-hover: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border: #334155;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-orange: #f97316;
+            --gradient-1: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+            --gradient-2: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+            --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            --shadow-glow: 0 0 40px rgba(16, 185, 129, 0.3);
+        }
 
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .bg-animation {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .bg-animation::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle at 20% 50%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+                        radial-gradient(circle at 50% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 50%);
+            animation: bgFloat 20s ease-in-out infinite;
+        }
+
+        @keyframes bgFloat {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(30px, -30px) rotate(1deg); }
+            66% { transform: translate(-20px, 20px) rotate(-1deg); }
+        }
+
+        nav {
+            position: fixed;
+            top: 0; width: 100%;
+            padding: 1rem 2rem;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover { color: var(--primary); }
+
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 8rem 2rem 4rem;
+            position: relative;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            color: var(--primary);
+            margin-bottom: 2rem;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 6vw, 5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .hero h1 span {
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-subtitle {
+            font-size: clamp(1.1rem, 2vw, 1.5rem);
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin-bottom: 3rem;
+        }
+
+        .configurator {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 2.5rem;
+            max-width: 700px;
+            width: 100%;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .configurator::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: var(--gradient-1);
+        }
+
+        .configurator h3 {
+            font-size: 1.25rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .form-group { margin-bottom: 1.5rem; }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .model-grid, .provider-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .model-card, .provider-card {
+            padding: 1rem;
+            background: var(--bg-dark);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .model-card:hover, .provider-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .model-card.selected, .provider-card.selected {
+            border-color: var(--primary);
+            background: rgba(16, 185, 129, 0.1);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+        }
+
+        .model-card .icon, .provider-card .icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .model-card .name, .provider-card .name {
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: var(--bg-dark);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.9375rem;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .input-field::placeholder { color: var(--text-muted); }
+
+        .deploy-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn-deploy {
+            padding: 1rem 1.5rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            color: white;
+        }
+
+        .btn-aws {
+            background: linear-gradient(135deg, #ff9900 0%, #ff6b00 100%);
+            box-shadow: 0 4px 15px rgba(255, 153, 0, 0.3);
+        }
+
+        .btn-aws:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 153, 0, 0.4);
+        }
+
+        .btn-azure {
+            background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%);
+            box-shadow: 0 4px 15px rgba(0, 120, 212, 0.3);
+        }
+
+        .btn-azure:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 120, 212, 0.4);
+        }
+
+        .trust-badges {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .trust-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        .comparison {
+            padding: 6rem 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+        }
+
+        .section-subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-bottom: 4rem;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .comparison-grid { grid-template-columns: 1fr; }
+            .deploy-buttons { grid-template-columns: 1fr; }
+        }
+
+        .comparison-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 2rem;
+            position: relative;
+        }
+
+        .comparison-card.highlight {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, transparent 100%);
+        }
+
+        .comparison-card .tag {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .tag-traditional {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .tag-openclaw {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--primary);
+        }
+
+        .comparison-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .time-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+        }
+
+        .time-traditional { color: #ef4444; }
+        .time-openclaw { color: var(--primary); }
+
+        .step-list {
+            list-style: none;
+        }
+
+        .step-list li {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.9375rem;
+        }
+
+        .step-list li:last-child { border-bottom: none; }
+
+        .step-list li .time {
+            margin-left: auto;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .features {
+            padding: 6rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 3rem;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--gradient-1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card h4 {
+            font-size: 1.125rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 0.9375rem;
+        }
+
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 3rem 2rem;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.95);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .loading-overlay.active { display: flex; }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1.5rem;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loading-text { font-size: 1.25rem; font-weight: 600; }
+        .loading-subtext { color: var(--text-secondary); margin-top: 0.5rem; }
+
+        .progress-bar {
+            width: 300px;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            margin-top: 1.5rem;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--gradient-1);
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-animation"></div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Deploying your AI assistant...</div>
+        <div class="loading-subtext">This takes about 45-60 seconds</div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+    </div>
+
+    <nav>
+        <div class="logo">🦾 OpenClaw Deploy</div>
+        <ul class="nav-links">
+            <li><a href="#deploy">Deploy</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#comparison">Comparison</a></li>
+            <li><a href="https://github.com/openclaw/openclaw" target="_blank">GitHub</a></li>
+        </ul>
+    </nav>
+
+    <section class="hero" id="deploy">
+        <div class="hero-badge">
+            <span>⚡</span> Deploy in under 60 seconds
+        </div>
+        <h1>Deploy <span>OpenClaw</span><br>in One Click</h1>
+        <p class="hero-subtitle">
+            Your own 24/7 AI assistant on Telegram, WhatsApp, or Discord. 
+            Choose from 15+ models, pick a channel, and deploy — no server setup, no code, no configuration.
+        </p>
+
+        <div class="configurator">
+            <h3>🚀 Configure Your Deployment</h3>
+
+            <div class="form-group">
+                <label>Which AI provider?</label>
+                <div class="provider-grid" id="providerGrid">
+                    <div class="provider-card selected" data-provider="anthropic">
+                        <div class="icon">🧠</div>
+                        <div class="name">Claude</div>
+                    </div>
+                    <div class="provider-card" data-provider="openai">
+                        <div class="icon">💬</div>
+                        <div class="name">GPT-4</div>
+                    </div>
+                    <div class="provider-card" data-provider="google">
+                        <div class="icon">✨</div>
+                        <div class="name">Gemini</div>
+                    </div>
+                    <div class="provider-card" data-provider="deepseek">
+                        <div class="icon">🔍</div>
+                        <div class="name">DeepSeek</div>
+                    </div>
+                    <div class="provider-card" data-provider="moonshot">
+                        <div class="icon">🌙</div>
+                        <div class="name">Kimi</div>
+                    </div>
+                    <div class="provider-card" data-provider="xai">
+                        <div class="icon">🚀</div>
+                        <div class="name">Grok</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="apiKey">AI Provider API Key</label>
+                <input type="password" id="apiKey" class="input-field" placeholder="sk-ant-... or your API key">
+            </div>
+
+            <div class="form-group">
+                <label for="sshKey">SSH Public Key</label>
+                <textarea id="sshKey" class="input-field" rows="3" placeholder="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... your_email@example.com"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="channelToken">Channel Bot Token (optional)</label>
+                <input type="password" id="channelToken" class="input-field" placeholder="Telegram Bot Token / Discord Token (optional)">
+            </div>
+
+            <div class="deploy-buttons">
+                <button class="btn-deploy btn-aws" id="btnAws" onclick="deploy('aws')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6.763 10.036c0 .296.032.535.088.71.064.176.144.368.256.576.04.063.056.127.056.183 0 .08-.048.16-.152.24l-.503.335a.383.383 0 0 1-.208.072c-.08 0-.16-.04-.239-.112a2.47 2.47 0 0 1-.287-.375 6.18 6.18 0 0 1-.248-.471c-.622.734-1.405 1.101-2.347 1.101-.67 0-1.205-.191-1.596-.574-.391-.384-.59-.894-.59-1.533 0-.678.239-1.23.726-1.644.487-.415 1.133-.623 1.955-.623.272 0 .551.024.846.064.296.04.6.104.918.176v-.583c0-.607-.127-1.03-.375-1.277-.255-.248-.686-.367-1.3-.367-.28 0-.568.031-.863.103-.2.056-.407.127-.623.24a1.33 1.33 0 0 1-.28.104.488.488 0 0 1-.127.023c-.112 0-.168-.08-.168-.247v-.391c0-.128.016-.224.056-.28a.597.597 0 0 1 .224-.167c.216-.112.48-.207.79-.288.31-.08.639-.12.99-.12.624 0 1.143.16 1.558.48.415.32.63.807.63 1.462v1.93zm-3.348.557c.263 0 .534-.048.822-.144.287-.096.543-.271.758-.519.127-.152.223-.32.272-.512.047-.192.08-.424.08-.696v-.335a6.66 6.66 0 0 0-.735-.136 6.02 6.02 0 0 0-.75-.048c-.535 0-.926.104-1.19.32-.263.215-.39.518-.39.917 0 .375.095.655.295.846.191.2.47.303.838.303zm6.66.624c-.144 0-.24-.024-.304-.08-.064-.048-.12-.16-.168-.311L7.586 5.55a1.398 1.398 0 0 1-.072-.32c0-.128.064-.2.191-.2h.783c.151 0 .255.025.31.08.065.048.113.16.16.312l1.342 5.284 1.245-5.284c.04-.16.088-.264.151-.312a.549.549 0 0 1 .32-.08h.638c.152 0 .256.025.32.08.063.048.12.16.151.312l1.261 5.348 1.381-5.348c.048-.16.104-.264.16-.312a.52.52 0 0 1 .311-.08h.743c.127 0 .2.065.2.2 0 .04-.009.08-.017.128a1.137 1.137 0 0 1-.056.2l-1.923 6.17c-.048.16-.104.263-.168.311a.51.51 0 0 1-.303.08h-.687c-.151 0-.255-.024-.32-.08-.063-.056-.119-.16-.15-.312l-1.238-5.148-1.23 5.14c-.04.16-.087.264-.15.312-.065.056-.177.08-.32.08zm10.256.215c-.415 0-.83-.048-1.229-.143-.399-.096-.71-.2-.918-.32-.128-.071-.215-.151-.247-.223a.563.563 0 0 1-.048-.224v-.407c0-.167.064-.247.183-.247.048 0 .096.008.144.024.048.016.12.048.2.08.271.12.566.215.878.279.319.064.63.096.95.096.502 0 .894-.088 1.165-.264a.86.86 0 0 0 .415-.758.777.777 0 0 0-.215-.559c-.144-.151-.415-.287-.806-.415l-1.157-.36c-.583-.183-1.014-.454-1.277-.813a1.902 1.902 0 0 1-.4-1.158c0-.335.073-.63.216-.886.144-.255.335-.479.575-.654.24-.184.51-.32.83-.415.32-.096.655-.136 1.006-.136.175 0 .359.008.535.032.183.024.35.056.518.088.16.04.312.08.455.127.144.048.256.096.336.144a.69.69 0 0 1 .24.2.43.43 0 0 1 .071.263v.375c0 .168-.064.256-.184.256a.83.83 0 0 1-.303-.096 3.652 3.652 0 0 0-1.532-.311c-.455 0-.815.071-1.062.223-.248.152-.375.383-.375.71 0 .224.08.416.24.567.16.152.454.304.87.44l1.134.358c.574.184.99.44 1.237.767.247.327.367.702.367 1.117 0 .343-.072.655-.207.926-.144.272-.336.511-.583.703-.248.2-.543.343-.886.447-.36.111-.734.167-1.142.167zM21.698 4.114c-2.665-.143-5.226.593-7.324 2.066a11.583 11.583 0 0 0-3.893 4.996c-.48 1.067-.743 2.208-.775 3.368v.32c.032 1.16.295 2.3.775 3.368a11.583 11.583 0 0 0 3.893 4.996c2.098 1.473 4.659 2.209 7.324 2.066.48-.032.943-.16 1.358-.384.415-.224.766-.527 1.03-.895.264-.368.439-.783.519-1.214.08-.432.064-.87-.048-1.294-.112-.424-.312-.815-.591-1.15-.28-.336-.623-.607-1.006-.799-.383-.192-.799-.304-1.222-.336h-.32c-.423.032-.839.144-1.222.336-.383.192-.726.463-1.006.799-.279.335-.479.726-.591 1.15-.112.424-.128.862-.048 1.294.08.431.255.846.519 1.214.264.368.615.671 1.03.895.415.224.878.352 1.358.384 2.665.143 5.226-.593 7.324-2.066a11.583 11.583 0 0 0 3.893-4.996c.48-1.067.743-2.208.775-3.368v-.32c-.032-1.16-.295-2.3-.775-3.368a11.583 11.583 0 0 0-3.893-4.996c-2.098-1.473-4.659-2.209-7.324-2.066z"/></svg>
+                    Deploy to AWS
+                </button>
+                <button class="btn-deploy btn-azure" id="btnAzure" onclick="deploy('azure')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M5.483 21.3H24L14.025 4.013l-3.038 8.347 5.836 6.938L5.483 21.3zM13.23 2.7L6.105 8.677 0 19.253h5.505l7.26-10.533L13.23 2.7z"/></svg>
+                    Deploy to Azure
+                </button>
+            </div>
+        </div>
+
+        <div class="trust-badges">
+            <div class="trust-badge">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Set up in &lt;1 min
+            </div>
+            <div class="trust-badge">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Cancel anytime
+            </div>
+            <div class="trust-badge">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                Money-back guarantee
+            </div>
+            <div class="trust-badge">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                No code required
+            </div>
+        </div>
+    </section>
+
+    <section class="comparison" id="comparison">
+        <h2 class="section-title">Traditional vs OpenClaw Deploy</h2>
+        <p class="section-subtitle">Skip the technical complexity</p>
+
+        <div class="comparison-grid">
+            <div class="comparison-card">
+                <span class="tag tag-traditional">Traditional Method</span>
+                <h3>~60 minutes</h3>
+                <div class="time-badge time-traditional">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    If non-technical, multiply by 10
+                </div>
+                <ul class="step-list">
+                    <li><span>🖥️</span> Purchasing cloud VM <span class="time">15 min</span></li>
+                    <li><span>📦</span> Node.js / NPM install <span class="time">5 min</span></li>
+                    <li><span>🔧</span> Bot framework install <span class="time">7 min</span></li>
+                    <li><span>⚙️</span> Bot framework setup <span class="time">10 min</span></li>
+                    <li><span>🔗</span> AI provider connection <span class="time">4 min</span></li>
+                    <li><span>🔒</span> Security & SSL config <span class="time">15 min</span></li>
+                    <li><span>🐛</span> Debugging issues <span class="time">∞ min</span></li>
+                </ul>
+            </div>
+
+            <div class="comparison-card highlight">
+                <span class="tag tag-openclaw">OpenClaw Deploy</span>
+                <h3>~45 seconds</h3>
+                <div class="time-badge time-openclaw">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    Your instance is live in under 60 seconds
+                </div>
+                <ul class="step-list">
+                    <li><span>✅</span> Pick your AI provider <span class="time">5 sec</span></li>
+                    <li><span>✅</span> Paste your API key <span class="time">10 sec</span></li>
+                    <li><span>✅</span> Add SSH key <span class="time">10 sec</span></li>
+                    <li><span>✅</span> Click Deploy <span class="time">5 sec</span></li>
+                    <li><span>🚀</span> CloudFormation/Azure deploys <span class="time">~45 sec</span></li>
+                    <li><span>🎉</span> Your AI assistant is live! <span class="time">0 sec</span></li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section class="features" id="features">
+        <h2 class="section-title">What your OpenClaw can do</h2>
+        <p class="section-subtitle">Built-in skills that work out of the box across all channels</p>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🌐</div>
+                <h4>Web Search & Browse</h4>
+                <p>Search the web, fetch pages, and summarize articles in real time.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">💻</div>
+                <h4>Code Generation</h4>
+                <p>Write, debug, and explain code in Python, JavaScript, and 50+ languages.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📄</div>
+                <h4>Document Analysis</h4>
+                <p>Read, summarize, and extract insights from PDFs and long texts.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🌍</div>
+                <h4>Translation</h4>
+                <p>Translate between 100+ languages in real time within any conversation.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">✍️</div>
+                <h4>Writing & Editing</h4>
+                <p>Draft emails, essays, blog posts, and marketing copy with tone control.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h4>Data & Tables</h4>
+                <p>Analyze spreadsheets, create comparison tables, and compute calculations.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🧠</div>
+                <h4>Persistent Memory</h4>
+                <p>Remembers context across conversations. Your assistant learns over time.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h4>File Scanning</h4>
+                <p>Scan files and URLs for security threats via VirusTotal integration.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p>Built with ❤️ for the OpenClaw community. Not affiliated with OpenClaw project.</p>
+        <p style="margin-top: 0.5rem; font-size: 0.875rem;">
+            <a href="https://github.com/openclaw/openclaw" style="color: var(--primary); text-decoration: none;">OpenClaw on GitHub</a> · 
+            <a href="https://openclaw.ai" style="color: var(--primary); text-decoration: none;">Official Site</a>
+        </p>
+    </footer>
+
+    <script>
+        document.querySelectorAll('.provider-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+            });
+        });
+
+        function deploy(provider) {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const sshKey = document.getElementById('sshKey').value.trim();
+            const channelToken = document.getElementById('channelToken').value.trim();
+            const selectedProvider = document.querySelector('.provider-card.selected').dataset.provider;
+
+            if (!apiKey) {
+                alert('Please enter your AI provider API key.');
+                return;
+            }
+            if (!sshKey) {
+                alert('Please enter your SSH public key for VM access.');
+                return;
+            }
+
+            const overlay = document.getElementById('loadingOverlay');
+            const progressFill = document.getElementById('progressFill');
+            overlay.classList.add('active');
+
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+                progressFill.style.width = progress + '%';
+            }, 1000);
+
+            let deployUrl;
+            if (provider === 'aws') {
+                const params = new URLSearchParams({
+                    stackName: 'openclaw-' + Date.now(),
+                    templateURL: 'https://your-bucket.s3.amazonaws.com/openclaw-v2.yaml',
+                    param_DeploymentName: 'openclaw',
+                    param_AiProvider: selectedProvider,
+                    param_ApiKey: apiKey,
+                    param_SshKey: sshKey,
+                    param_ChannelToken: channelToken || ''
+                });
+                deployUrl = `https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?${params.toString()}`;
+            } else {
+                const templateUri = encodeURIComponent('https://your-storage.blob.core.windows.net/templates/azuredeploy-v2.json');
+                deployUrl = `https://portal.azure.com/#create/Microsoft.Template/uri/${templateUri}`;
+            }
+
+            setTimeout(() => {
+                clearInterval(interval);
+                progressFill.style.width = '100%';
+                setTimeout(() => {
+                    overlay.classList.remove('active');
+                    window.open(deployUrl, '_blank');
+                }, 500);
+            }, 3000);
+        }
+
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+    </script>
+</body>
+</html>
