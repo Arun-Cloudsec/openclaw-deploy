@@ -1,40 +1,40 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "contentVersion": "2.0.0.0",
+  "contentVersion": "2.2.0.0",
   "metadata": {
-    "_generator": { "name": "openclaw-one-click", "version": "2.0.0" },
-    "description": "OpenClaw one-click deployment v2 — all lessons from production debugging baked in. Node 22 (not 20), Claude Code installed, openclaw setup pre-configured, loginctl enable-linger for systemd user services, openclaw gateway install creates user unit, nginx reverse proxy on port 80, NSG opens 80 and 443. Total: ~3-4 min from Create to OpenClaw login screen on a public URL."
+    "_generator": { "name": "openclaw-one-click", "version": "2.2.0" },
+    "description": "OpenClaw v2.2 — write_files puts a real bash script on disk with proper YAML inline content, runcmd executes it with explicit /bin/bash. Avoids the dash-shell-default issue that broke v2.0."
   },
   "parameters": {
     "deploymentName": {
       "type": "string", "defaultValue": "openclaw", "minLength": 3, "maxLength": 12,
-      "metadata": { "description": "Short name (3-12 lowercase alphanumeric chars)." }
+      "metadata": { "description": "Short name." }
     },
     "modelProvider": {
       "type": "string", "defaultValue": "anthropic",
       "allowedValues": [ "anthropic", "openai" ],
-      "metadata": { "description": "Provider. OpenClaw v2026.4.29 uses Claude Code (anthropic) or Codex (openai)." }
+      "metadata": { "description": "Provider." }
     },
     "modelApiKey": {
       "type": "securestring",
-      "metadata": { "description": "API key. Final OAuth pairing happens via dashboard if needed." }
+      "metadata": { "description": "API key." }
     },
     "vmSize": {
       "type": "string", "defaultValue": "Standard_B2s",
       "allowedValues": [ "Standard_B1ms", "Standard_B2s", "Standard_B2ms", "Standard_D2s_v5" ],
-      "metadata": { "description": "B2s recommended (2 vCPU / 4 GB)." }
+      "metadata": { "description": "VM size." }
     },
     "adminUsername": {
       "type": "string", "defaultValue": "claw",
-      "metadata": { "description": "Linux username; also runs the OpenClaw service." }
+      "metadata": { "description": "Linux username." }
     },
     "sshPublicKey": {
       "type": "string",
-      "metadata": { "description": "SSH public key (~/.ssh/id_ed25519.pub)." }
+      "metadata": { "description": "SSH public key." }
     },
     "location": {
       "type": "string", "defaultValue": "[resourceGroup().location]",
-      "metadata": { "description": "IMPORTANT: Anthropic-supported region required (UAE North, West Europe, US, etc). NOT East Asia / Hong Kong." }
+      "metadata": { "description": "Anthropic-supported region (UAE North, West Europe, US, etc)." }
     }
   },
   "variables": {
@@ -42,11 +42,10 @@
     "vmName":         "[concat(parameters('deploymentName'), '-vm')]",
     "nicName":        "[concat(parameters('deploymentName'), '-nic')]",
     "vnetName":       "[concat(parameters('deploymentName'), '-vnet')]",
-    "subnetName":     "default",
     "publicIpName":   "[concat(parameters('deploymentName'), '-ip')]",
     "nsgName":        "[concat(parameters('deploymentName'), '-nsg')]",
     "dnsLabelPrefix": "[concat(parameters('deploymentName'), '-', variables('uniqueSuffix'))]",
-    "subnetRef":      "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]"
+    "subnetRef":      "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), 'default')]"
   },
   "resources": [
     {
@@ -83,7 +82,7 @@
         "addressSpace": { "addressPrefixes": [ "10.42.0.0/16" ] },
         "subnets": [
           {
-            "name": "[variables('subnetName')]",
+            "name": "default",
             "properties": {
               "addressPrefix": "10.42.0.0/24",
               "networkSecurityGroup": { "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]" }
@@ -147,7 +146,7 @@
               ]
             }
           },
-          "customData": "[base64(concat('#cloud-config\nruncmd:\n  - |\n    set -euxo pipefail\n    LOG=/var/log/openclaw-bootstrap.log\n    exec > >(tee -a $LOG) 2>&1\n    echo \"[$(date)] OpenClaw bootstrap v2 starting\"\n    USER_NAME=', parameters('adminUsername'), '\n    PROVIDER=', parameters('modelProvider'), '\n    API_KEY=', parameters('modelApiKey'), '\n    DEPLOYMENT_FQDN=', variables('dnsLabelPrefix'), '.', parameters('location'), '.cloudapp.azure.com\n    apt-get update -y\n    apt-get install -y curl ca-certificates git build-essential nginx\n    curl -fsSL https://deb.nodesource.com/setup_22.x | bash -\n    apt-get install -y nodejs\n    node --version\n    npm install -g openclaw@latest @anthropic-ai/claude-code\n    loginctl enable-linger $USER_NAME\n    USER_UID=$(id -u $USER_NAME)\n    mkdir -p /home/$USER_NAME/.openclaw\n    chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/.openclaw\n    printf %s \"{\\\"version\\\":1,\\\"profiles\\\":{\\\"$PROVIDER:default\\\":{\\\"type\\\":\\\"api_key\\\",\\\"provider\\\":\\\"$PROVIDER\\\",\\\"key\\\":\\\"$API_KEY\\\"}}}\" > /home/$USER_NAME/.openclaw/auth-profiles.json\n    chown $USER_NAME:$USER_NAME /home/$USER_NAME/.openclaw/auth-profiles.json\n    chmod 600 /home/$USER_NAME/.openclaw/auth-profiles.json\n    sudo -u $USER_NAME XDG_RUNTIME_DIR=/run/user/$USER_UID bash -c \"openclaw setup < /dev/null\" || true\n    sudo -u $USER_NAME XDG_RUNTIME_DIR=/run/user/$USER_UID bash -c \"openclaw gateway install < /dev/null\" || true\n    sleep 3\n    sudo -u $USER_NAME XDG_RUNTIME_DIR=/run/user/$USER_UID bash -c \"systemctl --user restart openclaw-gateway\" || true\n    sleep 2\n    printf \"server_names_hash_bucket_size 128;\\n\" > /etc/nginx/conf.d/server-names.conf\n    printf \"server {\\n  listen 80 default_server;\\n  listen [::]:80 default_server;\\n  server_name $DEPLOYMENT_FQDN;\\n  client_max_body_size 100M;\\n  location / {\\n    proxy_pass http://127.0.0.1:18789;\\n    proxy_http_version 1.1;\\n    proxy_set_header Upgrade \\$http_upgrade;\\n    proxy_set_header Connection \\\"upgrade\\\";\\n    proxy_set_header Host \\$host;\\n    proxy_set_header X-Real-IP \\$remote_addr;\\n    proxy_set_header X-Forwarded-For \\$proxy_add_x_forwarded_for;\\n    proxy_set_header X-Forwarded-Proto \\$scheme;\\n    proxy_read_timeout 86400;\\n    proxy_send_timeout 86400;\\n  }\\n}\\n\" > /etc/nginx/sites-available/openclaw\n    rm -f /etc/nginx/sites-enabled/default\n    ln -sf /etc/nginx/sites-available/openclaw /etc/nginx/sites-enabled/openclaw\n    nginx -t\n    systemctl restart nginx\n    systemctl enable nginx\n    echo \"[$(date)] OpenClaw bootstrap v2 complete\"\n'))]"
+          "customData": "[base64(concat('#cloud-config\nwrite_files:\n  - path: /usr/local/bin/openclaw-bootstrap.sh\n    permissions: ''0755''\n    owner: root:root\n    content: |\n      #!/bin/bash\n      set -euxo pipefail\n      LOG=/var/log/openclaw-bootstrap.log\n      exec > >(tee -a $LOG) 2>&1\n      echo \"[$(date)] OpenClaw bootstrap v2.2 starting\"\n      USER_NAME=', parameters('adminUsername'), '\n      PROVIDER=', parameters('modelProvider'), '\n      API_KEY=', parameters('modelApiKey'), '\n      DEPLOYMENT_FQDN=', variables('dnsLabelPrefix'), '.', parameters('location'), '.cloudapp.azure.com\n      apt-get update -y\n      apt-get install -y curl ca-certificates git build-essential nginx\n      curl -fsSL https://deb.nodesource.com/setup_22.x | bash -\n      apt-get install -y nodejs\n      node --version\n      npm install -g openclaw@latest @anthropic-ai/claude-code\n      loginctl enable-linger $USER_NAME\n      USER_UID=$(id -u $USER_NAME)\n      mkdir -p /home/$USER_NAME/.openclaw\n      chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/.openclaw\n      cat > /home/$USER_NAME/.openclaw/auth-profiles.json <<JSONEOF\n      {\n        \"version\": 1,\n        \"profiles\": {\n          \"$PROVIDER:default\": {\n            \"type\": \"api_key\",\n            \"provider\": \"$PROVIDER\",\n            \"key\": \"$API_KEY\"\n          }\n        }\n      }\n      JSONEOF\n      chown $USER_NAME:$USER_NAME /home/$USER_NAME/.openclaw/auth-profiles.json\n      chmod 600 /home/$USER_NAME/.openclaw/auth-profiles.json\n      sudo -u $USER_NAME XDG_RUNTIME_DIR=/run/user/$USER_UID bash -c \"openclaw setup < /dev/null\" || true\n      sudo -u $USER_NAME XDG_RUNTIME_DIR=/run/user/$USER_UID bash -c \"openclaw gateway install < /dev/null\" || true\n      sleep 3\n      sudo -u $USER_NAME XDG_RUNTIME_DIR=/run/user/$USER_UID bash -c \"systemctl --user restart openclaw-gateway\" || true\n      sleep 2\n      echo \"server_names_hash_bucket_size 128;\" > /etc/nginx/conf.d/server-names.conf\n      cat > /etc/nginx/sites-available/openclaw <<NGINXEOF\n      server {\n          listen 80 default_server;\n          listen [::]:80 default_server;\n          server_name $DEPLOYMENT_FQDN;\n          client_max_body_size 100M;\n          location / {\n              proxy_pass http://127.0.0.1:18789;\n              proxy_http_version 1.1;\n              proxy_set_header Upgrade \\$http_upgrade;\n              proxy_set_header Connection \"upgrade\";\n              proxy_set_header Host \\$host;\n              proxy_set_header X-Real-IP \\$remote_addr;\n              proxy_set_header X-Forwarded-For \\$proxy_add_x_forwarded_for;\n              proxy_set_header X-Forwarded-Proto \\$scheme;\n              proxy_read_timeout 86400;\n              proxy_send_timeout 86400;\n          }\n      }\n      NGINXEOF\n      rm -f /etc/nginx/sites-enabled/default\n      ln -sf /etc/nginx/sites-available/openclaw /etc/nginx/sites-enabled/openclaw\n      nginx -t\n      systemctl restart nginx\n      systemctl enable nginx\n      echo \"[$(date)] OpenClaw bootstrap v2.2 complete\"\nruncmd:\n  - [ /bin/bash, /usr/local/bin/openclaw-bootstrap.sh ]\n'))]"
         },
         "networkProfile": {
           "networkInterfaces": [
@@ -158,25 +157,10 @@
     }
   ],
   "outputs": {
-    "openClawUrl": {
-      "type": "string",
-      "value": "[concat('http://', reference(variables('publicIpName')).dnsSettings.fqdn)]"
-    },
-    "sshCommand": {
-      "type": "string",
-      "value": "[concat('ssh ', parameters('adminUsername'), '@', reference(variables('publicIpName')).dnsSettings.fqdn)]"
-    },
-    "publicIp": {
-      "type": "string",
-      "value": "[reference(variables('publicIpName')).ipAddress]"
-    },
-    "fqdn": {
-      "type": "string",
-      "value": "[reference(variables('publicIpName')).dnsSettings.fqdn]"
-    },
-    "firstSteps": {
-      "type": "string",
-      "value": "Wait ~4 minutes for cloud-init. Visit openClawUrl. If auth fails, SSH in and run: claude /login then openclaw models auth add"
-    }
+    "openClawUrl": { "type": "string", "value": "[concat('http://', reference(variables('publicIpName')).dnsSettings.fqdn)]" },
+    "sshCommand":  { "type": "string", "value": "[concat('ssh ', parameters('adminUsername'), '@', reference(variables('publicIpName')).dnsSettings.fqdn)]" },
+    "publicIp":    { "type": "string", "value": "[reference(variables('publicIpName')).ipAddress]" },
+    "fqdn":        { "type": "string", "value": "[reference(variables('publicIpName')).dnsSettings.fqdn]" },
+    "firstSteps":  { "type": "string", "value": "Wait ~4 min for bootstrap. Visit openClawUrl. SSH and run: grep token ~/.openclaw/openclaw.json to get the gateway token." }
   }
 }
