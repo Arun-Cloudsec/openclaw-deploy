@@ -1,88 +1,55 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "contentVersion": "1.0.0.0",
+  "contentVersion": "2.0.0.0",
   "metadata": {
-    "_generator": {
-      "name": "openclaw-one-click",
-      "version": "1.0.0"
-    },
-    "description": "Single-click OpenClaw deployment — provisions an Ubuntu 22.04 VM, installs Node.js + OpenClaw via cloud-init, configures the chosen model provider and Telegram channel, exposes the agent gateway on port 18789. Total provisioning time: ~50–90 seconds before VM is ready, +30s for OpenClaw boot."
+    "_generator": { "name": "openclaw-one-click", "version": "2.0.0" },
+    "description": "OpenClaw one-click deployment v2 — all lessons from production debugging baked in. Node 22 (not 20), Claude Code installed, openclaw setup pre-configured, loginctl enable-linger for systemd user services, openclaw gateway install creates user unit, nginx reverse proxy on port 80, NSG opens 80 and 443. Total: ~3-4 min from Create to OpenClaw login screen on a public URL."
   },
   "parameters": {
     "deploymentName": {
-      "type": "string",
-      "defaultValue": "openclaw",
-      "minLength": 3,
-      "maxLength": 12,
-      "metadata": {
-        "description": "Short name (3-12 chars). Used as a prefix for all created resources. Lowercase letters and digits only."
-      }
+      "type": "string", "defaultValue": "openclaw", "minLength": 3, "maxLength": 12,
+      "metadata": { "description": "Short name (3-12 lowercase alphanumeric chars)." }
     },
     "modelProvider": {
-      "type": "string",
-      "defaultValue": "moonshot",
-      "allowedValues": [ "moonshot", "anthropic", "openai", "google", "deepseek", "xai" ],
-      "metadata": {
-        "description": "Which LLM provider OpenClaw should route to. moonshot=Kimi K2.6, anthropic=Claude, openai=GPT, google=Gemini, deepseek=DeepSeek, xai=Grok."
-      }
+      "type": "string", "defaultValue": "anthropic",
+      "allowedValues": [ "anthropic", "openai" ],
+      "metadata": { "description": "Provider. OpenClaw v2026.4.29 uses Claude Code (anthropic) or Codex (openai)." }
     },
     "modelApiKey": {
       "type": "securestring",
-      "metadata": {
-        "description": "API key for the chosen provider. Stored as a Linux env var on the VM (not echoed to logs)."
-      }
-    },
-    "telegramBotToken": {
-      "type": "securestring",
-      "defaultValue": "",
-      "metadata": {
-        "description": "Optional. Telegram BotFather token if you want OpenClaw to listen on Telegram. Leave blank to deploy without a channel — you can add one later via the agent gateway UI."
-      }
+      "metadata": { "description": "API key. Final OAuth pairing happens via dashboard if needed." }
     },
     "vmSize": {
-      "type": "string",
-      "defaultValue": "Standard_B2s",
+      "type": "string", "defaultValue": "Standard_B2s",
       "allowedValues": [ "Standard_B1ms", "Standard_B2s", "Standard_B2ms", "Standard_D2s_v5" ],
-      "metadata": {
-        "description": "VM size. B2s (2 vCPU / 4 GB RAM) is the recommended baseline. Drop to B1ms for cheaper testing, bump to D2s_v5 for heavier skill loads."
-      }
+      "metadata": { "description": "B2s recommended (2 vCPU / 4 GB)." }
     },
     "adminUsername": {
-      "type": "string",
-      "defaultValue": "claw",
-      "metadata": {
-        "description": "Linux username for SSH. The deployment will not enable password auth — set sshPublicKey below to access the box."
-      }
+      "type": "string", "defaultValue": "claw",
+      "metadata": { "description": "Linux username; also runs the OpenClaw service." }
     },
     "sshPublicKey": {
       "type": "string",
-      "metadata": {
-        "description": "Your SSH public key (paste the contents of ~/.ssh/id_rsa.pub or id_ed25519.pub). Required — password auth is disabled by default."
-      }
+      "metadata": { "description": "SSH public key (~/.ssh/id_ed25519.pub)." }
     },
     "location": {
-      "type": "string",
-      "defaultValue": "[resourceGroup().location]",
-      "metadata": {
-        "description": "Azure region. Defaults to the resource group's region."
-      }
+      "type": "string", "defaultValue": "[resourceGroup().location]",
+      "metadata": { "description": "IMPORTANT: Anthropic-supported region required (UAE North, West Europe, US, etc). NOT East Asia / Hong Kong." }
     }
   },
   "variables": {
-    "uniqueSuffix":     "[uniqueString(resourceGroup().id, parameters('deploymentName'))]",
-    "vmName":           "[concat(parameters('deploymentName'), '-vm')]",
-    "nicName":          "[concat(parameters('deploymentName'), '-nic')]",
-    "vnetName":         "[concat(parameters('deploymentName'), '-vnet')]",
-    "subnetName":       "default",
-    "publicIpName":     "[concat(parameters('deploymentName'), '-ip')]",
-    "nsgName":          "[concat(parameters('deploymentName'), '-nsg')]",
-    "dnsLabelPrefix":   "[concat(parameters('deploymentName'), '-', variables('uniqueSuffix'))]",
-    "subnetRef":        "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]",
-    "providerEnvVar":   "[concat('OPENCLAW_PROVIDER=', parameters('modelProvider'))]"
+    "uniqueSuffix":   "[uniqueString(resourceGroup().id, parameters('deploymentName'))]",
+    "vmName":         "[concat(parameters('deploymentName'), '-vm')]",
+    "nicName":        "[concat(parameters('deploymentName'), '-nic')]",
+    "vnetName":       "[concat(parameters('deploymentName'), '-vnet')]",
+    "subnetName":     "default",
+    "publicIpName":   "[concat(parameters('deploymentName'), '-ip')]",
+    "nsgName":        "[concat(parameters('deploymentName'), '-nsg')]",
+    "dnsLabelPrefix": "[concat(parameters('deploymentName'), '-', variables('uniqueSuffix'))]",
+    "subnetRef":      "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]"
   },
   "resources": [
     {
-      "comments": "Public IP — DNS-named so the gateway URL is stable across restarts",
       "type": "Microsoft.Network/publicIPAddresses",
       "apiVersion": "2023-09-01",
       "name": "[variables('publicIpName')]",
@@ -94,29 +61,15 @@
       }
     },
     {
-      "comments": "NSG — allow only SSH (22) and the OpenClaw gateway (18789). No 80/443; the gateway speaks its own protocol on 18789.",
       "type": "Microsoft.Network/networkSecurityGroups",
       "apiVersion": "2023-09-01",
       "name": "[variables('nsgName')]",
       "location": "[parameters('location')]",
       "properties": {
         "securityRules": [
-          {
-            "name": "SSH",
-            "properties": {
-              "priority": 1000, "protocol": "Tcp", "access": "Allow", "direction": "Inbound",
-              "sourceAddressPrefix": "*", "sourcePortRange": "*",
-              "destinationAddressPrefix": "*", "destinationPortRange": "22"
-            }
-          },
-          {
-            "name": "OpenClawGateway",
-            "properties": {
-              "priority": 1010, "protocol": "Tcp", "access": "Allow", "direction": "Inbound",
-              "sourceAddressPrefix": "*", "sourcePortRange": "*",
-              "destinationAddressPrefix": "*", "destinationPortRange": "18789"
-            }
-          }
+          { "name": "SSH",   "properties": { "priority": 1000, "protocol": "Tcp", "access": "Allow", "direction": "Inbound", "sourceAddressPrefix": "*", "sourcePortRange": "*", "destinationAddressPrefix": "*", "destinationPortRange": "22"  } },
+          { "name": "HTTP",  "properties": { "priority": 1010, "protocol": "Tcp", "access": "Allow", "direction": "Inbound", "sourceAddressPrefix": "*", "sourcePortRange": "*", "destinationAddressPrefix": "*", "destinationPortRange": "80"  } },
+          { "name": "HTTPS", "properties": { "priority": 1020, "protocol": "Tcp", "access": "Allow", "direction": "Inbound", "sourceAddressPrefix": "*", "sourcePortRange": "*", "destinationAddressPrefix": "*", "destinationPortRange": "443" } }
         ]
       }
     },
@@ -133,9 +86,7 @@
             "name": "[variables('subnetName')]",
             "properties": {
               "addressPrefix": "10.42.0.0/24",
-              "networkSecurityGroup": {
-                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
-              }
+              "networkSecurityGroup": { "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]" }
             }
           }
         ]
@@ -155,16 +106,15 @@
           {
             "name": "ipconfig1",
             "properties": {
-              "subnet":             { "id": "[variables('subnetRef')]" },
+              "subnet": { "id": "[variables('subnetRef')]" },
               "privateIPAllocationMethod": "Dynamic",
-              "publicIPAddress":    { "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]" }
+              "publicIPAddress": { "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]" }
             }
           }
         ]
       }
     },
     {
-      "comments": "The VM. cloud-init runs OpenClaw bootstrap on first boot. Image: Canonical Ubuntu Server 22.04 LTS Gen2.",
       "type": "Microsoft.Compute/virtualMachines",
       "apiVersion": "2024-03-01",
       "name": "[variables('vmName')]",
@@ -174,15 +124,13 @@
         "hardwareProfile": { "vmSize": "[parameters('vmSize')]" },
         "storageProfile": {
           "imageReference": {
-            "publisher": "Canonical",
-            "offer":     "0001-com-ubuntu-server-jammy",
-            "sku":       "22_04-lts-gen2",
-            "version":   "latest"
+            "publisher": "Canonical", "offer": "0001-com-ubuntu-server-jammy",
+            "sku": "22_04-lts-gen2", "version": "latest"
           },
           "osDisk": {
             "createOption": "FromImage",
-            "managedDisk":  { "storageAccountType": "Premium_LRS" },
-            "diskSizeGB":   30
+            "managedDisk": { "storageAccountType": "Premium_LRS" },
+            "diskSizeGB": 30
           }
         },
         "osProfile": {
@@ -199,7 +147,7 @@
               ]
             }
           },
-          "customData": "[base64(concat('#cloud-config\nwrite_files:\n  - path: /etc/openclaw/env\n    permissions: ''0600''\n    owner: root:root\n    content: |\n      OPENCLAW_PROVIDER=', parameters('modelProvider'), '\n      OPENCLAW_MODEL_API_KEY=', parameters('modelApiKey'), '\n      TELEGRAM_BOT_TOKEN=', parameters('telegramBotToken'), '\n      OPENCLAW_GATEWAY_PORT=18789\n  - path: /usr/local/bin/openclaw-bootstrap.sh\n    permissions: ''0755''\n    owner: root:root\n    content: |\n      #!/bin/bash\n      set -euo pipefail\n      LOG=/var/log/openclaw-bootstrap.log\n      exec > >(tee -a $LOG) 2>&1\n      echo \"[$(date)] OpenClaw bootstrap starting\"\n      apt-get update -y\n      curl -fsSL https://deb.nodesource.com/setup_20.x | bash -\n      apt-get install -y nodejs git build-essential\n      npm install -g openclaw@latest\n      mkdir -p /opt/openclaw && chown ', parameters('adminUsername'), ':', parameters('adminUsername'), ' /opt/openclaw\n      set -a; source /etc/openclaw/env; set +a\n      sudo -u ', parameters('adminUsername'), ' --preserve-env env HOME=/home/', parameters('adminUsername'), ' bash -c \"cd /opt/openclaw && openclaw onboard --non-interactive --provider $OPENCLAW_PROVIDER --gateway-port 18789 || true\"\n      cat > /etc/systemd/system/openclaw.service <<EOF\n      [Unit]\n      Description=OpenClaw agent gateway\n      After=network-online.target\n      Wants=network-online.target\n      [Service]\n      Type=simple\n      User=', parameters('adminUsername'), '\n      EnvironmentFile=/etc/openclaw/env\n      WorkingDirectory=/opt/openclaw\n      ExecStart=/usr/bin/openclaw start --gateway-port 18789\n      Restart=on-failure\n      RestartSec=5s\n      [Install]\n      WantedBy=multi-user.target\n      EOF\n      systemctl daemon-reload\n      systemctl enable --now openclaw.service\n      echo \"[$(date)] OpenClaw bootstrap complete\"\nruncmd:\n  - /usr/local/bin/openclaw-bootstrap.sh\n'))]"
+          "customData": "[base64(concat('#cloud-config\nruncmd:\n  - |\n    set -euxo pipefail\n    LOG=/var/log/openclaw-bootstrap.log\n    exec > >(tee -a $LOG) 2>&1\n    echo \"[$(date)] OpenClaw bootstrap v2 starting\"\n    USER_NAME=', parameters('adminUsername'), '\n    PROVIDER=', parameters('modelProvider'), '\n    API_KEY=', parameters('modelApiKey'), '\n    DEPLOYMENT_FQDN=', variables('dnsLabelPrefix'), '.', parameters('location'), '.cloudapp.azure.com\n    apt-get update -y\n    apt-get install -y curl ca-certificates git build-essential nginx\n    curl -fsSL https://deb.nodesource.com/setup_22.x | bash -\n    apt-get install -y nodejs\n    node --version\n    npm install -g openclaw@latest @anthropic-ai/claude-code\n    loginctl enable-linger $USER_NAME\n    USER_UID=$(id -u $USER_NAME)\n    mkdir -p /home/$USER_NAME/.openclaw\n    chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/.openclaw\n    printf %s \"{\\\"version\\\":1,\\\"profiles\\\":{\\\"$PROVIDER:default\\\":{\\\"type\\\":\\\"api_key\\\",\\\"provider\\\":\\\"$PROVIDER\\\",\\\"key\\\":\\\"$API_KEY\\\"}}}\" > /home/$USER_NAME/.openclaw/auth-profiles.json\n    chown $USER_NAME:$USER_NAME /home/$USER_NAME/.openclaw/auth-profiles.json\n    chmod 600 /home/$USER_NAME/.openclaw/auth-profiles.json\n    sudo -u $USER_NAME XDG_RUNTIME_DIR=/run/user/$USER_UID bash -c \"openclaw setup < /dev/null\" || true\n    sudo -u $USER_NAME XDG_RUNTIME_DIR=/run/user/$USER_UID bash -c \"openclaw gateway install < /dev/null\" || true\n    sleep 3\n    sudo -u $USER_NAME XDG_RUNTIME_DIR=/run/user/$USER_UID bash -c \"systemctl --user restart openclaw-gateway\" || true\n    sleep 2\n    printf \"server_names_hash_bucket_size 128;\\n\" > /etc/nginx/conf.d/server-names.conf\n    printf \"server {\\n  listen 80 default_server;\\n  listen [::]:80 default_server;\\n  server_name $DEPLOYMENT_FQDN;\\n  client_max_body_size 100M;\\n  location / {\\n    proxy_pass http://127.0.0.1:18789;\\n    proxy_http_version 1.1;\\n    proxy_set_header Upgrade \\$http_upgrade;\\n    proxy_set_header Connection \\\"upgrade\\\";\\n    proxy_set_header Host \\$host;\\n    proxy_set_header X-Real-IP \\$remote_addr;\\n    proxy_set_header X-Forwarded-For \\$proxy_add_x_forwarded_for;\\n    proxy_set_header X-Forwarded-Proto \\$scheme;\\n    proxy_read_timeout 86400;\\n    proxy_send_timeout 86400;\\n  }\\n}\\n\" > /etc/nginx/sites-available/openclaw\n    rm -f /etc/nginx/sites-enabled/default\n    ln -sf /etc/nginx/sites-available/openclaw /etc/nginx/sites-enabled/openclaw\n    nginx -t\n    systemctl restart nginx\n    systemctl enable nginx\n    echo \"[$(date)] OpenClaw bootstrap v2 complete\"\n'))]"
         },
         "networkProfile": {
           "networkInterfaces": [
@@ -210,9 +158,9 @@
     }
   ],
   "outputs": {
-    "gatewayUrl": {
+    "openClawUrl": {
       "type": "string",
-      "value": "[concat('http://', reference(variables('publicIpName')).dnsSettings.fqdn, ':18789')]"
+      "value": "[concat('http://', reference(variables('publicIpName')).dnsSettings.fqdn)]"
     },
     "sshCommand": {
       "type": "string",
@@ -225,6 +173,10 @@
     "fqdn": {
       "type": "string",
       "value": "[reference(variables('publicIpName')).dnsSettings.fqdn]"
+    },
+    "firstSteps": {
+      "type": "string",
+      "value": "Wait ~4 minutes for cloud-init. Visit openClawUrl. If auth fails, SSH in and run: claude /login then openclaw models auth add"
     }
   }
 }
