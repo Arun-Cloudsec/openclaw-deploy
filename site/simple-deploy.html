@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenClaw Deploy - One-Click AI Assistant</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            text-align: center;
+            max-width: 600px;
+            padding: 2rem;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #10b981, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .deploy-btn {
+            display: inline-block;
+            margin: 1rem;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        .deploy-btn:hover { transform: translateY(-2px); }
+        .aws-btn {
+            background: linear-gradient(135deg, #ff9900, #ff6b00);
+            color: white;
+        }
+        .azure-btn {
+            background: linear-gradient(135deg, #0078d4, #005a9e);
+            color: white;
+        }
+        .manual-btn {
+            background: #334155;
+            color: white;
+            border: 1px solid #475569;
+        }
+        .info {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+        code {
+            background: rgba(255,255,255,0.1);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🦾 OpenClaw Deploy</h1>
+        <p>Deploy your AI assistant in under 60 seconds</p>
+
+        <!-- AWS Deploy Button -->
+        <a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://openclaw-deploy.s3.amazonaws.com/openclaw-v2.yaml&stackName=openclaw" 
+           class="deploy-btn aws-btn" target="_blank">
+            🚀 Deploy to AWS
+        </a>
+
+        <!-- Azure Deploy Button - Using GitHub Raw URL -->
+        <a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FYOUR_USERNAME%2FYOUR_REPO%2Fmain%2Fazuredeploy-v2.json" 
+           class="deploy-btn azure-btn" target="_blank">
+            🚀 Deploy to Azure
+        </a>
+
+        <!-- Manual Upload Fallback -->
+        <div style="margin-top: 2rem;">
+            <p style="color: #64748b; font-size: 0.875rem;">Button not working?</p>
+            <a href="#manual" onclick="showManual()" class="deploy-btn manual-btn">
+                📋 Manual Deploy
+            </a>
+        </div>
+
+        <div id="manual" class="info" style="display: none; text-align: left;">
+            <h3>Manual Azure Deployment</h3>
+            <ol>
+                <li>Download <code>azuredeploy-v2.json</code></li>
+                <li>Go to <a href="https://portal.azure.com" style="color: #3b82f6;">Azure Portal</a></li>
+                <li>Search "Deploy a custom template"</li>
+                <li>Click "Build your own template in the editor"</li>
+                <li>Paste the JSON content</li>
+                <li>Click Save, then fill parameters and deploy</li>
+            </ol>
+            <p style="margin-top: 1rem;">
+                <strong>Or use Azure CLI:</strong><br>
+                <code style="font-size: 0.8rem; word-break: break-all;">
+                    az deployment group create --resource-group myRG --template-file azuredeploy-v2.json
+                </code>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function showManual() {
+            document.getElementById('manual').style.display = 'block';
+            return false;
+        }
+    </script>
+</body>
+</html>
